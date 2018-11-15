@@ -8,18 +8,18 @@ class Permission(Enum):
     Admin = 1
     Student = 2
     
-    def sudo(instance, task):
-        original_permission = instance.session.permission
-        instance.session.permission = Permission.Admin
+    def sudo(upper, session, task):
+        original_permission = session.permission
+        session.permission = upper
         result = task()
-        instance.session.permission = original_permission
+        session.permission = original_permission
         return result
 
     def require(permission):
         def wrapper(f):
             @wraps(f)
             def wrapped(self, *args, **kwargs):
-                if self.session and self.session.permission == permission:
+                if self.permission == permission:
                     return f(self, *args, **kwargs)
                 raise Exception("Invalid Permission")
             return wrapped
