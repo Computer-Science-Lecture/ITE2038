@@ -1,0 +1,8 @@
+flask
+flask-login
+sqlalchemy
+pymysql
+numpy
+pandas
+markdown
+scikit-learn
