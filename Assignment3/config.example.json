@@ -1,0 +1,18 @@
+{
+  "app": {
+    "secret": "THISISSECRETSTRING",
+    "port": 80
+  },
+  "db": {
+    "username": "",
+    "password": "",
+    "database": "",
+    "host": "",
+    "port": ,
+    "dialect": "mysql",
+    "define": {
+      "charset": "utf8",
+      "collate": "utf8_unicode_ci"
+    }
+  }
+}
