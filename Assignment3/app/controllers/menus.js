@@ -2,16 +2,16 @@ const m = require('../models');
 const { assert } = require('../lib');
 
 module.exports = {
-  index: (req, res, query) => m.Store.findAll({
+  index: (req, res, query) => m.Menu.findAll({
     where: assert.object(req.query),
   },).then(r => res.json(r)),
-  show: (req, res, query) => m.Store.findOne(Object.assign(
+  show: (req, res, query) => m.Menu.findOne(Object.assign(
     assert.object(query), {
-      where: { store_id: req.params.store_id },
+      where: { menu_id: req.params.menu_id },
     },
   )).then(r => assert.result(res, r)),
-  destroy: (req, res) => m.Store.destroy({ where: { store_id: req.params.store_id } })
+  destroy: (req, res) => m.Menu.destroy({ where: { menu_id: req.params.menu_id } })
     .then(r => res.json({status:'ok'})),
-  create: (req, res) => m.Store.create(req.body)
+  create: (req, res) => m.Menu.create(req.body)
     .then(r => res.json(r.toJSON())),
 };

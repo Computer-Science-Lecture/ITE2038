@@ -5,8 +5,26 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true,
     },
+    payment: DataTypes.STRING(256),
+    menus: DataTypes.STRING(512),
+    done: {
+      type:DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    delivery_id: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+
+    createdAt: {
+      type: DataTypes.DATE,
+      defaultValue: sequelize.literal('NOW()'),
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      defaultValue: sequelize.literal('NOW()'),
+    },
   }, {
-    timestamps: false,
     charset: 'utf8',
     collate: 'utf8_unicode_ci',
   });
@@ -22,11 +40,6 @@ module.exports = (sequelize, DataTypes) => {
 
     m.Order.belongsTo(m.Destination, {
       foreignKey: 'destination_id',
-    });
-
-    m.Order.hasMany(m.Menu, {
-      as: 'Menu',
-      foreignKey: 'order_id',
     });
   };
 

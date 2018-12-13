@@ -11,17 +11,12 @@ module.exports = (sequelize, DataTypes) => {
     domain: DataTypes.STRING(64),
     passwd: DataTypes.STRING(64),
 
-    lat: DataTypes.STRING(64),
-    lng: DataTypes.STRING(64),
+    lat: DataTypes.FLOAT,
+    lng: DataTypes.FLOAT,
   }, {
     timestamps: false,
     charset: 'utf8',
     collate: 'utf8_unicode_ci',
-  });
-
-  Delivery.associate = m => m.Delivery.hasMany(m.Order, {
-    as: 'Order',
-    foreignKey: 'delivery_id',
   });
 
   return Delivery;

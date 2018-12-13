@@ -10,8 +10,8 @@ module.exports = (sequelize, DataTypes) => {
     local: DataTypes.STRING(64),
     domain: DataTypes.STRING(64),
     passwd: DataTypes.STRING(64),
-    lat: DataTypes.STRING(64),
-    lng: DataTypes.STRING(64),
+    lat: DataTypes.FLOAT,
+    lng: DataTypes.FLOAT,
     payments: DataTypes.JSON,
   }, {
     timestamps: false,

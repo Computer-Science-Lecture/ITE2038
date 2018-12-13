@@ -7,10 +7,19 @@ module.exports = (sequelize, DataTypes) => {
     },
     sname: DataTypes.STRING(64),
     address: DataTypes.STRING(64),
-    phone_nums: DataTypes.STRING(64),
-    lat: DataTypes.STRING(64),
-    lng: DataTypes.STRING(64),
+    phone_nums: DataTypes.JSON,
+    lat: DataTypes.FLOAT,
+    lng: DataTypes.FLOAT,
     schedules: DataTypes.JSON,
+
+    description: {
+      type: DataTypes.TEXT,
+      defaultValue: "",
+    },
+    tags: {
+      type: DataTypes.JSON,
+      defaultValue: "[]",
+    },
   }, {
     timestamps: false,
     charset: 'utf8',

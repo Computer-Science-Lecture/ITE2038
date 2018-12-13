@@ -1,12 +1,12 @@
 module.exports = (sequelize, DataTypes) => {
   const Destination = sequelize.define('Destination', {
-    Destination_id: {
+    destination_id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true,
     },
-    lat: DataTypes.STRING(64),
-    lng: DataTypes.STRING(64),
+    lat: DataTypes.FLOAT,
+    lng: DataTypes.FLOAT,
   }, {
     timestamps: false,
     charset: 'utf8',
