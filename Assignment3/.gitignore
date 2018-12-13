@@ -1,11 +1,7 @@
 # config
 config.json
 data/
-site/
 secret
-
-# Gemfile
-Gemfile.lock
 
 # Logs
 logs

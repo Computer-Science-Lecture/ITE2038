@@ -5,7 +5,7 @@ const express = require('express');
 
 const router = express.Router();
 
-const fetch = require('../controllers/fetch');
+const m = require('../models');
 
 const routes = { router };
 
@@ -26,13 +26,56 @@ Object.entries(routes)
     }
   });
 
+// Session debug
+router.get('/session', (req, res) => {
+  res.json(req.session);
+});
+
 router.post('/login', (req, res) => {
-  console.log(req.session.user)
   if (req.body.email && req.body.password) {
-    req.session.user = 'unknown';
-    res.redirect('/seller.html');
-    // res.redirect('/customer.html');
-    // res.redirect('/delivery.html');
+    const cond = {
+      where: {
+        local: '',
+        domain: '',
+        passwd: req.body.password,
+      },
+      raw: true
+    };
+    [cond.where.local, cond.where.domain] = req.body.email.split('@');
+
+    m.Seller.findOne(cond)
+    .then(user => {
+      if (user === null) throw new Error('Invalide email or password')
+      delete user.passwd;
+      req.session.user = user;
+      req.session.type = 'seller'
+      res.sendFile('seller.html', {
+        root: path.join(__dirname, '../../site'),
+      });
+    }).catch(() => m.Customer.findOne(cond)
+    .then(user => {
+      if (user === null) throw new Error('Invalide email or password')
+      delete user.passwd;
+      req.session.user = user;
+      req.session.type = 'customer'
+      res.sendFile('customer.html', {
+        root: path.join(__dirname, '../../site'),
+      });
+    }).catch(() => m.Delivery.findOne(cond)
+    .then(user => {
+      if (user === null) throw new Error('Invalide email or password')
+      delete user.passwd;
+      req.session.user = user;
+      req.session.type = 'delivery'
+      res.sendFile('delivery.html', {
+        root: path.join(__dirname, '../../site'),
+      });
+    }).catch(() => {
+      res.json({
+        status: 'error',
+        message: 'Invalid email or password',
+      });
+    })));
   } else {
     res.json({
       status: 'error',

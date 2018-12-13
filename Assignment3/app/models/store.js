@@ -2,6 +2,7 @@ module.exports = (sequelize, DataTypes) => {
   const Store = sequelize.define('Store', {
     store_id: {
         type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true,
     },
     sname: DataTypes.STRING(64),
@@ -24,6 +25,11 @@ module.exports = (sequelize, DataTypes) => {
     m.Store.hasMany(m.Order, {
       as: 'Order',
       foreignKey: 'store_id', 
+    });
+
+    m.Store.hasMany(m.Menu, {
+      as: 'Menu',
+      foreignKey: 'store_id'
     })
   };
 

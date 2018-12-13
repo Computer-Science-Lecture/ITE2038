@@ -11,8 +11,12 @@ lib.io.writeSync('secret', secretString = lib.io.hash());
 
 app.use(session({
   secret: secretString,
-  resave: true,
-  saveUninitialized: false,
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: false,
+    maxAge: 86400000,
+  }
 }));
 app.use(parser.json());
 app.use(parser.urlencoded({ extended: true }));
