@@ -1,3 +1,5 @@
+USE `ITE2038`;
+
 -- INSERT Bank data
 INSERT INTO Banks (code, name) VALUES (3,"기업은행");
 INSERT INTO Banks (code, name) VALUES (4,"국민은행");
