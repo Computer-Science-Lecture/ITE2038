@@ -1,26 +1,95 @@
 let session = {};
 let map;
-const markers = [];
+let markers = [];
 const stores = {};
 
-function createPayment(payment) {
-  $('#list-payments').append($(`
-    <li class="list-group-item list-group-item-action list-payment">
+function updateCurrent(lat = 0, lng = 0) {
+  const dist = (lt, lg) => Math.pow(lat-lt,2)+Math.pow(lng-lg,2);
+
+  markers.forEach(marker => marker.setMap(null));
+  markers = [];
+
+  $('#list-stores').empty();
+  session.stores
+    .sort((l, r) => dist(l.lat, l.lng)-dist(r.lat, r.lng))
+    .forEach(store => {
+      createStore(store);
+      addMarker({
+        lat: parseFloat(store.lat),
+        lng: parseFloat(store.lng),
+      }, store.sname);
+    });
+}
+
+function updatePayment(update=false) {
+  if (update) {
+    $.ajax({
+      url: `/customer/${session.user.customer_id}/payment`,
+      type: 'PUT',
+      data: {
+        payments: session.user.payments,
+      },
+      success: data => {
+        alert('payments updated!');
+      }
+    });
+  }
+  $('#list-payments').empty();
+  session.user.payments.forEach(createPayment);
+}
+
+function createPayment(payment, i) {
+  const element = $(`
+    <li class="list-group-item list-group-item-action list-payment" data-payment-id="${i}">
       <span>${payment.type}</span>
       <span>${payment.data.card_num || ''}${payment.data.acc_num || ''}</span>
-    </li>`));
+      <button type="button" class="btn btn-sm btn-outline-warning mb-2 btn-mod">변경</button>
+      <button type="button" class="btn btn-sm btn-outline-danger mb-2 btn-del">삭제</button>
+    </li>`);
+
+  element.find('.btn-mod').on('click', function() {
+    const payment_id = $(this).parent().data('payment-id');
+    $('#paymentModal').data('payment-id', payment_id);
+    $('#payment-type').val(session.user.payments[payment_id].type);
+
+    $('.payment-div').prop('hidden', true);
+    $(`#payment-${session.user.payments[payment_id].type}`).prop('hidden', false);
+
+    if (session.user.payments[payment_id].type === 'account') {
+      $('#payment-bank').val(session.user.payments[payment_id].data.bid);
+      $('#payment-acc').val(session.user.payments[payment_id].data.acc_num);
+    } else if (session.user.payments[payment_id].type === 'card') {
+      $('#payment-cc').val(session.user.payments[payment_id].data.card_num);
+    }
+    $('#paymentModal').modal('show');
+  });
+
+  element.find('.btn-del').on('click', function() {
+    if (confirm('정말 결제정보를 지우시겠습니까?')) {
+      const payment_id = $(this).parent().data('payment-id');
+      session.user.payments.splice(payment_id, 1);
+      updatePayment(true);
+    }
+  });
+
+  $('#list-payments').append(element);
 
   $('#storeModal #store-pay').append($(`
     <option value="${payment.type}-${payment.data.card_num || ''}${payment.data.acc_num || ''}">${payment.type}-${payment.data.card_num || ''}${payment.data.acc_num || ''}</option>`));
 }
 
 function createStore(store) {
+  const day = {0: '월', 1: '화', 2: '수', 3: '목', 4: '금', 5: '토', 6: '일'};
   const element = $(`
     <li class="list-group-item list-group-item-action list-store" data-store-id="${store.store_id}">
-      <p>name: ${store.sname}</p>
-      <p>addr: ${store.address}</p>
+      <p class="s-name">${store.sname}</p>
+      <p class="s-addr">${store.address}</p>
+      ${store.tags.map(tag => `<span class="badge badge-primary badge-pill">${tag}</span>`).join('')}
+      <p>${store.description}</p>
       <p>${store.phone_nums.map(phone => `<button class="btn btn-outline-secondary disabled">${phone}</button>`).join('')}</p>
-      <small>${JSON.stringify(store.schedules)}</small>
+      <div class="btn-group mr-2 schedules" role="group">
+        ${store.schedules.map(schedule => `<button type="button" class="btn btn-sm disabled btn-${schedule.holiday?'secondary':'primary'}">${day[schedule.day]}<small>${schedule.open||''}-${schedule.closed||''}</small></button>`).join('')}
+      </div>
     </li>`);
 
   $.get(`/menu?store_id=${store.store_id}`, menus => {
@@ -34,15 +103,18 @@ function createStore(store) {
     $('#storeModal .list-menus').data('store-id', $(this).data('store-id'));
     stores[$(this).data('store-id')].menus.forEach(menu => {
       const e = $(`
-        <li class="list-group-item list-group-item-action list-menu" data-menu-id="${menu.menu_id}">
+        <li class="list-group-item list-group-item-action list-menu" data-menu-id="${menu.menu_id}" data-count="0">
+          <span class="badge badge-primary badge-pill">0</span>
           <span>${menu.name}</span>
           <small>${menu.price}</small>
         </li>`);
       e.on('click', function() {
-        if ($(this).hasClass('active')) {
-          $(this).removeClass('active');
+        $(this).data('count', $(this).data('count') + 1);
+        $(this).find('.badge').text($(this).data('count'));
+        if ($(this).data('count')) {
+          $(this).addClass('active');
         } else {
-          $(this).addClass('active'); 
+          $(this).removeClass('active');
         }
       });
       $('#storeModal .list-menus').append(e);
@@ -58,42 +130,46 @@ function createOrder(order) {
   $.get(`/destination?destination_id=${order.destination_id}`, destinations => {
     $.get(`/store?store_id=${order.store_id}`, stores => {
       $.get(`/menu?store_id=${order.store_id}`, menus => {
-        const omenu = new Set(order.menus.split(',').map(m => parseInt(m, 10)));
+        const omenu = JSON.parse(order.menus);
         const element = $(`
           <li class="list-group-item list-group-item-action list-order" data-order-id="${order.order_id}">
             <span>${stores[0].sname}</span>
-            <small>${menus.filter(m => omenu.has(m.menu_id)).map(m => m.name).join(', ')}</small>
+            <small>${menus.filter(m => Object.keys(omenu).indexOf(m.menu_id.toString()) !== -1).map(m => `${m.name}(${omenu[m.menu_id]})`).join(', ')}</small>
             <p>${destinations[0].lat}, ${destinations[0].lng}</p>
             <small>${order.payment}</small><br>
             <small>${order.createdAt}</small>
           </li>`);
 
         if (order.done === 0) {
-          element.addClass('disabled');
+          element.addClass('list-group-item-secondary');
+          element.append('<small>준비중</small>');
         } else if (order.done === 10) {
-          element.addClass('disabled');
+          element.addClass('list-group-item-danger');
           element.append('<strike><small>취소됨<small></strike>');
         } else if (order.done === 100) {
-          element.addClass('active');
-          element.append('<small>확인됨</small>');
+          $.get(`/delivery?delivery_id=${order.delivery_id}`, deliveries => {
+            element.addClass('list-group-item-warning');
+            element.append(`<small>${deliveries[0].name}님이 배달중</small>`);
 
-          element.on('click', function() {
-            if (confirm("주문을 완료하시겠습니까?")) {
-              $.ajax({
-                url: `/order/${$(this).data('order-id')}`,
-                type: 'PUT',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                  done: 999,
-                  delivery_id: 0,
-                }),
-                success: data => {
-                  alert('배달이 완료되었습니다.');
-                }
-              });
-            }
+            element.on('click', function() {
+              if (confirm("주문을 완료하시겠습니까?")) {
+                $.ajax({
+                  url: `/order/${$(this).data('order-id')}`,
+                  type: 'PUT',
+                  contentType: 'application/json',
+                  data: JSON.stringify({
+                    done: 999,
+                    delivery_id: 0,
+                  }),
+                  success: data => {
+                    alert('배달이 완료되었습니다.');
+                  }
+                });
+              }
+            });
           });
         } else if (order.done == 999) {
+          element.addClass('list-group-item-info');
           element.append('<small>배달 완료됨</small>');
         }
 
@@ -160,8 +236,7 @@ function initMap() {
         if (map) {
           res(map);
         } else {
-          $('#position').append(`<span>${coords.lat}</span>,`);
-          $('#position').append(`<span>${coords.lng}</span>`);
+          $('#position').find('span').text(`${coords.lat},${coords.lng}`);
 
           map = new google.maps.Map(document.getElementById('map'), {
             center: coords,
@@ -173,6 +248,8 @@ function initMap() {
             map: map,
             title: "Now",
           }));
+
+          updateCurrent(coords.lat, coords.lng);
 
           res(map);
         }
@@ -197,25 +274,45 @@ $(document).ready(function() {
     session = sess;
     $('#setting-name').val(session.user.name);
 
-    $('#list-stores').empty();
     $('#list-orders').empty();
     $('#list-destinations').empty();
-    $('#list-payments').empty();
 
-    session.user.payments.forEach(createPayment);
+    updatePayment();
+
     $.get(`/order?customer_id=${session.user.customer_id}`, orders => orders.forEach(createOrder));
     
     $.get(`/destination?customer_id=${session.user.customer_id}`, destinations => destinations.forEach(createDest));
 
-    $.get(`/store`, stores => {
+    $.get(`/store`, stores => { 
       session.stores = stores;
-      session.stores.forEach((store, i) => {
-        createStore(store);
-        addMarker({
-          lat: parseFloat(store.lat),
-          lng: parseFloat(store.lng),
-        }, store.sname);
-      });
+      updateCurrent();
+    });
+
+    $.get('/bank', banks => {
+      banks.map(bank => `<option value="${bank.bank_id}">${bank.name}</option>`).forEach(bank => $('select#payment-bank').append(bank));
+    });
+  });
+
+  $('select#payment-type').on('change', function() {
+    $('.payment-div').prop('hidden', true);
+    $(`#payment-${$(this).val()}`).prop('hidden', false);
+  });
+
+  $('button.payment-add').on('click', () => {
+    $('#paymentModal').data('payment-id', -1);
+    $('#paymentModal').modal('show');
+  });
+
+  $('input#store-search').on('input', function() {
+    const text = $(this).val();
+
+    $('#list-stores').children().removeClass('d-none');
+    $('#list-stores').children().each(function(i) {
+      if (!$(this).find('.s-name').text().includes(text) &&
+        !$(this).find('.s-addr').text().includes(text) &&
+        !$(this).find('span.badge').text().includes(text)) {
+        $(this).addClass('d-none');
+      }
     });
   });
 
@@ -224,11 +321,23 @@ $(document).ready(function() {
     const customer_id = session.user.customer_id;
     const destination_id = parseInt($('#storeModal #store-dest').val(), 10);
     const payment = $('#storeModal #store-pay').val();
-    const menus = $('#storeModal .list-menus').children().filter(function() {
+    const menus = {};
+
+    $('#storeModal .list-menus').children().filter(function() {
       return $(this).hasClass('active');
-    }).map(function() {
-      return $(this).data('menu-id');
-    }).get();
+    }).each(function() {
+      menus[$(this).data('menu-id')] = parseInt($(this).data('count'), 10);
+    });
+
+    if (Object.keys(menus).length === 0) {
+      alert('메뉴를 선택하세요.');
+      return;
+    }
+
+    if (isNaN(destination_id)) {
+      alert('목적지를 선택하세요.');
+      return;
+    }
 
     if (!payment) {
       alert('결제 수단을 선택하세요.');
@@ -243,7 +352,7 @@ $(document).ready(function() {
         store_id: store_id,
         customer_id: customer_id,
         destination_id: destination_id,
-        menus: menus.join(','),
+        menus: JSON.stringify(menus),
         payment: payment,
       }),
       success: data => {
@@ -269,22 +378,35 @@ $(document).ready(function() {
     });
   });
 
-  $('.payment-mod').on('click', () => {
-    $('#payment-values').val(JSON.stringify(session.user.payments));
-  });
   $('#payment-apply').on('click', () => {
-    $.ajax({
-      url: `/customer/${session.user.customer_id}/payment`,
-      type: 'PUT',
-      contentType: 'application/json',
-      data: {
-        payments: JSON.parse($('#payment-values').val()),
-      },
-      success: data => {
-        alert('payments updated!');
-        $('#paymentModal').modal('hide');
+    const payment_id = $('#paymentModal').data('payment-id');
+    const type = $('#payment-type').val();
+    let data;
+
+    if (type === 'account') {
+      data = {
+        bid: $('#payment-bank').val(),
+        acc_num: $('#payment-acc').val(),
       }
-    });
+    } else if (type === 'card') {
+      data = {
+        card_num: $('#payment-cc').val(),
+      }
+    }
+
+    if (payment_id === -1) {
+      session.user.payments.push({
+        type: type,
+        data: data
+      });
+    } else {
+      session.user.payments[payment_id] = {
+        type: type,
+        data: data
+      };
+    }
+    $('#paymentModal').modal('hide');
+    updatePayment(true);
   });
 
   // update user pass

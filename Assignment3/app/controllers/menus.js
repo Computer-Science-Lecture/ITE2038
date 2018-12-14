@@ -14,4 +14,13 @@ module.exports = {
     .then(r => res.json({status:'ok'})),
   create: (req, res) => m.Menu.create(req.body)
     .then(r => res.json(r.toJSON())),
+  update: (req, res) => {
+    m.Menu.update(req.body, {
+      where: { menu_id: req.params.menu_id }
+    }).then(result => {
+      res.json({
+        status: 'ok'
+      });
+    }).catch(e => res.json(e))
+  },
 };

@@ -64,18 +64,41 @@ function createOrder(order) {
   });
 }
 
-function createMenu(menu, store_id) {
-  $(`.list-menus[data-store-id="${store_id}"]`).append($(`
-    <li class="list-group-item list-group-item-action list-menu">
+function createMenu(menu) {
+  const element = $(`
+    <li class="list-group-item list-group-item-action list-menu" data-menu-id="${menu.menu_id}">
       <span>${menu.name}</span>
       <small>${menu.price}</small>
-      <button type="button" class="btn btn-sm btn-outline-warning mb-2" data-store-id="${store_id}">변경</button>
-      <button type="button" class="btn btn-sm btn-outline-danger mb-2" data-store-id="${store_id}">삭제</button>
-    </li>`));
+      <button type="button" class="btn btn-sm btn-outline-warning mb-2 btn-mod">변경</button>
+      <button type="button" class="btn btn-sm btn-outline-danger mb-2 btn-del">삭제</button>
+    </li>`);
+
+  element.find('button.btn-mod').on('click', function() {
+    $('#menuModal').data('store-id', 0);
+    $('#menuModal').data('menu-id', $(this).parent().data('menu-id'));
+    $('#menu-name').val($(this).parent().find('span').text());
+    $('#menu-price').val($(this).parent().find('small').text());
+    $('#menuModal').modal('show');
+  });
+
+  element.find('button.btn-del').on('click', function() {
+    if (confirm('이 메뉴를 삭제하시겠습니까?')) {
+      const menu_id = $(this).parent().data('menu-id');
+      $.ajax({
+        url: `/menu/${menu_id}`,
+        type: 'DELETE',
+        success: data => {
+          alert('Menu deleted!');
+        }
+      });
+    }
+  });
+
+  return element;
 }
 
 function createStore(store) {
-  $('#list-stores').append($(`
+  const element = $(`
     <li class="list-group-item list-group-item-action list-store">
       <span>${store.sname}</span>
       <small>${store.address}</small>
@@ -83,11 +106,21 @@ function createStore(store) {
       ${store.tags.map(tag => `<span class="badge badge-primary badge-pill">${tag}</span>`).join('')}
       <p>${store.description}</p>
       <h5>Menus</h5>
-      <button type="button" class="btn btn-outline-primary mb-2" data-store-id="${store.store_id}">추가</button>
+      <button type="button" class="btn btn-outline-primary mb-2 btn-add" data-store-id="${store.store_id}">추가</button>
       <ul class="list-group list-menus" data-store-id="${store.store_id}">
       </ul>
-    </li>`));
-  $.get(`/menu?store_id=${store.store_id}`, menus => menus.forEach(menu => createMenu(menu, store.store_id)));
+    </li>`);
+
+  element.find('button.btn-add').on('click', function() {
+    $('#menuModal').data('store-id', $(this).data('store-id'));
+    $('#menuModal').data('menu-id', 0);
+    $('#menu-name').val('');
+    $('#menu-price').val(0);
+    $('#menuModal').modal('show');
+  });
+
+  $('#list-stores').append(element);
+  $.get(`/menu?store_id=${store.store_id}`, menus => menus.map(createMenu).forEach(m => element.append(m)));
   $.get(`/order?store_id=${store.store_id}`, orders => orders.forEach(createOrder));
 }
 
@@ -116,6 +149,47 @@ $(document).ready(function() {
         $('#orderModal').modal('hide');
       }
     });
+  });
+
+  $('#menu-apply').on('click', () => {
+    const store_id = $('#menuModal').data('store-id');
+    const menu_id = $('#menuModal').data('menu-id');
+    const name = $('#menu-name').val();
+    const price = $('#menu-price').val();
+
+    if (!name || !price) {
+      alert('가격과 이름을 설정해야합니다.');
+      return;
+    }
+
+    if (store_id === 0 && menu_id) {
+      $.ajax({
+        url: `/menu/${menu_id}`,
+        type: 'PUT',
+        data: {
+          name: name,
+          price: price,
+        },
+        success: data => {
+          alert('Menu updated!');
+          $('#menuModal').modal('hide');
+        }
+      });
+    } else if (menu_id === 0 && store_id) {
+      $.ajax({
+        url: `/menu`,
+        type: 'POST',
+        data: {
+          name: name,
+          price: price,
+          store_id: store_id,
+        },
+        success: data => {
+          alert('Menu created!');
+          $('#menuModal').modal('hide');
+        }
+      });
+    }
   });
 
   // update user pass

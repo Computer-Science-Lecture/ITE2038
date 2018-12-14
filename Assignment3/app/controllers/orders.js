@@ -15,7 +15,6 @@ module.exports = {
     where: { order_id: req.params.order_id }
   }).then(r => res.json({status:'ok'})),
   create: (req, res) => {
-    console.log(req.body);
     m.Order.create(req.body)
     .then(r => res.json(r.toJSON()))
   },
